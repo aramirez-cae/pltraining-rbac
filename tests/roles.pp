@@ -1,6 +1,7 @@
 rbac_role { 'Viewers':
   ensure      => 'present',
   description => 'Viewers',
+  groups      => ['developers'],
   permissions => [
   {
     'object_type' => 'nodes',
@@ -12,4 +13,5 @@ rbac_role { 'Viewers':
     'action' => 'view',
     'instance' => '*'
   }],
+  users       => ['Testy Test'],
 }

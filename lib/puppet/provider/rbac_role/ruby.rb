@@ -6,15 +6,20 @@ Puppet::Type.type(:rbac_role).provide(:ruby, :parent => Puppet::Provider::Rbac_a
   mk_resource_methods
 
   def self.instances
+    $users = users
+    $groups = groups
     Puppet::Provider::Rbac_api::get_response('/roles').collect do |role|
       Puppet.debug "RBAC: Inspecting role #{role.inspect}"
+      # Turn ids into names
+      user_names = role['user_ids'].map { |id| $users[id] }
+      group_names = role['group_ids'].map { |id| $groups[id] }
       new(:ensure       => role['is_revoked'] ? :absent : :present,
           :id           => role['id'],
           :name         => role['display_name'],
           :description  => role['description'],
           :permissions  => role['permissions'],
-          :user_ids     => role['user_ids'],
-          :group_ids    => role['group_ids'],
+          :users        => user_names,
+          :groups       => group_names,
       )
     end
   end
@@ -28,6 +33,22 @@ Puppet::Type.type(:rbac_role).provide(:ruby, :parent => Puppet::Provider::Rbac_a
     end
   end
 
+  def self.users
+    users = {}
+    Puppet::Provider::Rbac_api::get_response('/users').collect do |user|
+      users[user['id']] = user['display_name']
+    end
+    users
+  end
+
+  def self.groups
+    groups = {}
+    Puppet::Provider::Rbac_api::get_response('/groups').collect do |group|
+      groups[group['id']] = group['login']
+    end
+    groups
+  end
+
   def exists?
     @property_hash[:ensure] == :present
   end
@@ -39,12 +60,16 @@ Puppet::Type.type(:rbac_role).provide(:ruby, :parent => Puppet::Provider::Rbac_a
       raise ArgumentError, 'description, and name are required attributes' unless resource[prop]
     end
 
+    # Transform names into ids
+    user_ids = resource['user_ids'].map { |name| $users.key(name) }
+    group_ids = resource['group_ids'].map { |name| $groups.key(name) }
+
     role = {
       'description'  => resource[:description],
       'display_name' => resource[:name],
       'permissions'  => resource[:permissions],
-      'user_ids'     => resource[:user_ids],
-      'group_ids'    => resource[:group_ids],
+      'user_ids'     => user_ids,
+      'group_ids'    => group_ids,
     }
     Puppet::Provider::Rbac_api::post_response('/roles', role)
 
@@ -69,13 +94,17 @@ Puppet::Type.type(:rbac_role).provide(:ruby, :parent => Puppet::Provider::Rbac_a
     return if @property_hash[:id].nil?
     return if @property_hash[:ensure] == :absent
 
+    # Turn names into ids
+    user_ids = @property_hash[:users].map { |name| $users.key(name) }
+    group_ids = @property_hash[:groups].map { |name| $groups.key(name) }
+
     role = {
       'id'           => @property_hash[:id],
       'description'  => @property_hash[:description],
       'display_name' => @property_hash[:name],
       'permissions'  => @property_hash[:permissions],
-      'user_ids'     => @property_hash[:user_ids],
-      'group_ids'    => @property_hash[:group_ids],
+      'user_ids'     => user_ids,
+      'group_ids'    => group_ids,
     }
 
     Puppet.debug "RBAC: Updating role #{role.inspect}"

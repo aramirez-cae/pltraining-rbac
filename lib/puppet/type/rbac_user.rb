@@ -35,13 +35,7 @@ Puppet::Type.newtype(:rbac_user) do
 
   newproperty(:roles, :array_matching =>:all) do
     desc 'List of role IDs the user is a member of. The only attribute which can be changed after creation.'
-    defaultto [3] # ID for the Viewer role
-
-    # Make sure this is an integer... if it looks like an integer. Gross.
-    munge do |value|
-        num = value.to_i
-        num == 0 ? value : num
-    end
+    defaultto ['Viewer']
 
     def insync?(is)
       is.sort == provider.normalize_roles(@should).sort

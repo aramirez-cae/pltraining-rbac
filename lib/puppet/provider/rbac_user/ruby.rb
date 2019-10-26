@@ -6,14 +6,17 @@ Puppet::Type.type(:rbac_user).provide(:ruby, :parent => Puppet::Provider::Rbac_a
   mk_resource_methods
 
   def self.instances
+    $roles = roles
     Puppet::Provider::Rbac_api::get_response('/users').collect do |user|
       Puppet.debug "RBAC: Inspecting user #{user.inspect}"
+      # Turn ids into names
+      role_names = user['role_ids'].map { |id| $roles[id] }
       new(:ensure       => user['is_revoked'] ? :absent : :present,
           :id           => user['id'],
           :name         => user['login'],
           :display_name => user['display_name'],
           :email        => user['email'],
-          :roles        => user['role_ids'],
+          :roles        => role_names,
           :remote       => user['is_remote'],
           :superuser    => user['is_superuser'],
           :last_login   => user['last_login'],
@@ -30,6 +33,14 @@ Puppet::Type.type(:rbac_user).provide(:ruby, :parent => Puppet::Provider::Rbac_a
     end
   end
 
+  def self.roles
+    roles = {}
+    Puppet::Provider::Rbac_api::get_response('/roles').collect do |role|
+      roles[role['id']] = role['display_name']
+    end
+    roles
+  end
+
   def exists?
     @property_hash[:ensure] == :present
   end
@@ -42,11 +53,14 @@ Puppet::Type.type(:rbac_user).provide(:ruby, :parent => Puppet::Provider::Rbac_a
         raise ArgumentError, 'name, email, and display_name are required attributes' unless resource[prop]
       end
 
+      # Transform role names into role ids
+      role_ids = resource[:roles].map { |name| $roles.key(name) }
+
       user = {
         'login'        => resource[:name],
         'email'        => resource[:email],
         'display_name' => resource[:display_name],
-        'role_ids'     => normalize_roles(resource[:roles]),
+        'role_ids'     => role_ids,
       }
       Puppet::Provider::Rbac_api::post_response('/users', user)
 
@@ -91,13 +105,16 @@ Puppet::Type.type(:rbac_user).provide(:ruby, :parent => Puppet::Provider::Rbac_a
     # so, flush gets called, even on create()
     return if @property_hash[:id].nil?
 
+    # Turn role names into ids
+    role_ids = @property_hash[:roles].map { |name| $roles.key(name) }
+
     user = {
       'is_revoked'   => revoked?,
       'id'           => @property_hash[:id],
       'login'        => @property_hash[:name],
       'email'        => @property_hash[:email],
       'display_name' => @property_hash[:display_name],
-      'role_ids'     => normalize_roles(@property_hash[:roles]),
+      'role_ids'     => role_ids,
       'is_remote'    => @property_hash[:remote],
       'is_superuser' => @property_hash[:superuser],
       'last_login'   => @property_hash[:last_login],
@@ -106,22 +123,6 @@ Puppet::Type.type(:rbac_user).provide(:ruby, :parent => Puppet::Provider::Rbac_a
 
     Puppet.debug "RBAC: Updating user #{user.inspect}"
     Puppet::Provider::Rbac_api::put_response("/users/#{@property_hash[:id]}", user)
-  end
-
-  def normalize_roles(list)
-    roles = nil
-    list.collect! do |item|
-      next item if item.to_i != 0
-
-      # lazy load the available roles. Avoid the API call unless needed
-      roles ||= Puppet::Provider::Rbac_api::get_response('/roles')
-
-      begin
-        roles.find {|r| r['display_name'].downcase == item.downcase }['id']
-      rescue NoMethodError => e
-        fail "Role #{item} does not exist"
-      end
-    end
   end
 
   def revoked?

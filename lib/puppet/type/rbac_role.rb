@@ -31,8 +31,8 @@ Puppet::Type.newtype(:rbac_role) do
     end
   end
 
-  newproperty(:user_ids, :array_matching =>:all) do
-    desc 'Array of UUIDs of users assigned to the role'
+  newproperty(:users, :array_matching =>:all) do
+    desc 'Array of users assigned to the role'
 
     def insync?(is)
       # The current value may be nil and we don't
@@ -45,8 +45,8 @@ Puppet::Type.newtype(:rbac_role) do
     end
   end
 
-  newproperty(:group_ids, :array_matching =>:all) do
-    desc 'Array of UUIDs of groups assigned to the role'
+  newproperty(:groups, :array_matching =>:all) do
+    desc 'Array of groups assigned to the role'
 
     def insync?(is)
       # The current value may be nil and we don't

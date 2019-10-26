@@ -16,12 +16,13 @@ rbac_user { 'testing account':
   display_name => 'Just a testing account',
   email        => 'testing@puppetlabs.com',
   password     => 'puppetlabs',
-  roles        => [ 1,2 ],
+  roles        => ['Operator', 'Viewers' ],
 }
 
 rbac_role { 'Viewers':
   ensure      => 'present',
   description => 'Viewers',
+  groups      => 'developers'
   permissions => [
   {
     'object_type' => 'nodes',
@@ -33,6 +34,7 @@ rbac_role { 'Viewers':
     'action' => 'view',
     'instance' => '*'
   }],
+  users       => 'Testy Test' 
 }
 
 rbac_group { 'admins':
