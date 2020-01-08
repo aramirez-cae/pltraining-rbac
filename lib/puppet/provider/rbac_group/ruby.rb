@@ -88,7 +88,7 @@ Puppet::Type.type(:rbac_group).provide(:ruby, :parent => Puppet::Provider::Rbac_
       'is_group'     => true,
       'is_remote'    => true,
       'is_superuser' => false,
-      'user_ids'     => [],
+      'users'     => [],
       'role_ids'     => role_ids,
     }
 

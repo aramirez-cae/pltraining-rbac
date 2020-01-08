@@ -11,7 +11,7 @@ Puppet::Type.type(:rbac_role).provide(:ruby, :parent => Puppet::Provider::Rbac_a
     Puppet::Provider::Rbac_api::get_response('/roles').collect do |role|
       Puppet.debug "RBAC: Inspecting role #{role.inspect}"
       # Turn ids into names
-      user_names = role['user_ids'].map { |id| $users[id] }
+      user_names = role['users'].map { |id| $users[id] }
       group_names = role['group_ids'].map { |id| $groups[id] }
       new(:ensure       => role['is_revoked'] ? :absent : :present,
           :id           => role['id'],
@@ -61,14 +61,14 @@ Puppet::Type.type(:rbac_role).provide(:ruby, :parent => Puppet::Provider::Rbac_a
     end
 
     # Transform names into ids
-    user_ids = resource['user_ids'].map { |name| $users.key(name) }
+    users = resource['users'].map { |name| $users.key(name) }
     group_ids = resource['group_ids'].map { |name| $groups.key(name) }
 
     role = {
       'description'  => resource[:description],
       'display_name' => resource[:name],
       'permissions'  => resource[:permissions],
-      'user_ids'     => user_ids,
+      'users'     => users,
       'group_ids'    => group_ids,
     }
     Puppet::Provider::Rbac_api::post_response('/roles', role)
@@ -95,7 +95,7 @@ Puppet::Type.type(:rbac_role).provide(:ruby, :parent => Puppet::Provider::Rbac_a
     return if @property_hash[:ensure] == :absent
 
     # Turn names into ids
-    user_ids = @property_hash[:users].map { |name| $users.key(name) }
+    users = @property_hash[:users].map { |name| $users.key(name) }
     group_ids = @property_hash[:groups].map { |name| $groups.key(name) }
 
     role = {
@@ -103,7 +103,7 @@ Puppet::Type.type(:rbac_role).provide(:ruby, :parent => Puppet::Provider::Rbac_a
       'description'  => @property_hash[:description],
       'display_name' => @property_hash[:name],
       'permissions'  => @property_hash[:permissions],
-      'user_ids'     => user_ids,
+      'users'     => users,
       'group_ids'    => group_ids,
     }
 
